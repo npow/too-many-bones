@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Too Many Bones - A Dice-Builder RPG</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- Screens are rendered dynamically by UI.js -->
+    <div id="title-screen" class="screen active"></div>
+    <div id="character-select" class="screen"></div>
+    <div id="day-screen" class="screen"></div>
+    <div id="encounter-screen" class="screen"></div>
+    <div id="battle-screen" class="screen"></div>
+    <div id="training-screen" class="screen"></div>
+    <div id="recovery-screen" class="screen"></div>
+    <div id="reward-screen" class="screen"></div>
+    <div id="win-screen" class="screen"></div>
+    <div id="lose-screen" class="screen"></div>
+
+    <!-- Modal overlay -->
+    <div id="modal-overlay" class="modal-overlay"></div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip" style="display:none"></div>
+  </div>
+
+  <!-- Scripts loaded in dependency order -->
+  <script src="js/utils.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/dice.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/gearloc.js"></script>
+  <script src="js/baddie-ai.js"></script>
+  <script src="js/encounter.js"></script>
+  <script src="js/combat.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
