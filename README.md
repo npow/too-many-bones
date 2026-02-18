@@ -1,10 +1,17 @@
 # Too Many Bones
 > A digital dice-builder RPG inspired by the Chip Theory Games tabletop classic
 
-<!--
-To add a screenshot, replace this comment with:
-![Too Many Bones Screenshot](screenshot.png)
--->
+![Title Screen](screenshots/title.png)
+
+## Screenshots
+
+| Character Select | Encounter |
+|:---:|:---:|
+| ![Character Select](screenshots/character_select.png) | ![Encounter](screenshots/encounter.png) |
+
+| Battle |
+|:---:|
+| ![Battle](screenshots/battle.png) |
 
 ## About
 
