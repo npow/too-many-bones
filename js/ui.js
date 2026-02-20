@@ -94,10 +94,10 @@ const UI = {
           <div class="gearloc-name">${g.name}</div>
           <div class="gearloc-role">${g.role}</div>
           <div class="gearloc-stats">
-            <div class="stat-item"><span class="stat-icon">&#9829;</span> <span class="stat-value">${g.hp}</span></div>
-            <div class="stat-item"><span class="stat-icon">&#9876;</span> <span class="stat-value">${g.atk}</span></div>
-            <div class="stat-item"><span class="stat-icon">&#9711;</span> <span class="stat-value">${g.def}</span></div>
-            <div class="stat-item"><span class="stat-icon">&#9733;</span> <span class="stat-value">${g.dex}</span></div>
+            <div class="stat-item"><span class="stat-icon" style="color:#e05050">HP</span> <span class="stat-value">${g.hp}</span></div>
+            <div class="stat-item"><span class="stat-icon" style="color:#e53935">ATK</span> <span class="stat-value">${g.atk}</span></div>
+            <div class="stat-item"><span class="stat-icon" style="color:#2196f3">DEF</span> <span class="stat-value">${g.def}</span></div>
+            <div class="stat-item"><span class="stat-icon" style="color:#4caf50">DEX</span> <span class="stat-value">${g.dex}</span></div>
           </div>
           <div class="gearloc-flavor">${g.flavor}</div>
           <div class="gearloc-innate"><b>${g.innate}:</b> ${g.innateDesc}</div>
@@ -213,10 +213,10 @@ const UI = {
     let choicesHTML = '';
     encounter.choices.forEach((choice, i) => {
       let typeLabel = '';
-      if (choice.type === 'battle') typeLabel = '&#9876; Battle';
-      else if (choice.type === 'skill_check') typeLabel = `&#9733; ${choice.stat.toUpperCase()} Check (DC ${choice.dc})`;
-      else if (choice.type === 'reward') typeLabel = '&#9734; Reward';
-      else if (choice.type === 'cost') typeLabel = '&#9679; Cost';
+      if (choice.type === 'battle') typeLabel = '\u2694 Battle';
+      else if (choice.type === 'skill_check') typeLabel = `\u272A ${choice.stat.toUpperCase()} Check (DC ${choice.dc})`;
+      else if (choice.type === 'reward') typeLabel = '\u2605 Reward';
+      else if (choice.type === 'cost') typeLabel = '\u26C1 Cost';
 
       choicesHTML += `
         <div class="encounter-choice" data-choice="${i}">
@@ -262,7 +262,7 @@ const UI = {
       body += `<div class="skill-check-dice">`;
       for (const d of sc.dice) {
         const cls = d.type === 'bones' ? 'bone-die' : (sc.stat === 'atk' ? 'attack-die' : (sc.stat === 'def' ? 'defense-die' : 'dex-die'));
-        body += `<div class="die ${cls}"><span class="die-value">${d.type === 'bones' ? '&#9760;' : d.value}</span></div>`;
+        body += `<div class="die ${cls}"><span class="die-value">${d.type === 'bones' ? '\u2620' : d.value}</span></div>`;
       }
       body += `</div>`;
       body += `<div class="skill-check-outcome ${sc.success ? 'success' : 'failure'}">${sc.success ? 'Success!' : 'Failed!'}</div>`;
@@ -300,14 +300,23 @@ const UI = {
     if (!battle) return;
     const screen = this.screens.battle;
 
-    // Top bar
+    // Top bar with turn banner
     const topBar = screen.querySelector('.battle-top-bar') || document.createElement('div');
     topBar.className = 'battle-top-bar';
-    const phaseLabel = this._getPhaseLabel(battle);
+    const current = Combat.getCurrentTurn(battle);
+    const isPlayerTurn = current && current.isGearloc && battle.phase !== 'enemy_turn';
+    const phaseInfo = this._getPhaseLabel(battle);
+    const phaseSteps = this._getPhaseSteps(battle);
     topBar.innerHTML = `
-      <div class="round-counter">Round ${battle.round}</div>
-      <div class="battle-phase-label">${phaseLabel}</div>
-      <div class="battle-info-text">${battle.isTyrant ? 'TYRANT BATTLE' : 'Battle'} | Queue: ${battle.baddieQueue.length}</div>
+      <div class="turn-banner ${isPlayerTurn ? 'player-turn' : 'enemy-turn'}">
+        <span class="round-badge">Round ${battle.round}</span>
+        <div style="text-align:center">
+          <div class="turn-banner-text">${isPlayerTurn ? 'Your Turn' : (current ? current.name + "'s Turn" : 'Battle')}</div>
+          <div class="turn-banner-phase">${phaseInfo.phase}</div>
+          ${isPlayerTurn ? phaseSteps : ''}
+        </div>
+        <span class="battle-info-badge">${battle.isTyrant ? 'TYRANT' : ''} ${battle.baddieQueue.length > 0 ? 'Queue: ' + battle.baddieQueue.length : ''}</span>
+      </div>
     `;
 
     // Left panel - selected unit info
@@ -358,29 +367,53 @@ const UI = {
 
   _getPhaseLabel(battle) {
     const current = Combat.getCurrentTurn(battle);
-    if (!current) return '';
-    switch (battle.phase) {
-      case 'rolling': return `${current.name}'s Turn - Roll Dice`;
-      case 'allocating': return `${current.name}'s Turn - Allocate`;
-      case 'acting': return `${current.name}'s Turn - Act`;
-      case 'enemy_turn': return `${current.name}'s Turn`;
-      default: return current.name + "'s Turn";
+    if (!current) return { text: '', phase: '' };
+    const isPlayer = current.isGearloc;
+    if (!isPlayer || battle.phase === 'enemy_turn') {
+      return { text: current.name, phase: 'Taking Action' };
     }
+    switch (battle.phase) {
+      case 'rolling': return { text: current.name, phase: 'Roll Your Dice' };
+      case 'allocating': return { text: current.name, phase: 'Choose Your Actions' };
+      case 'acting': return { text: current.name, phase: 'Choose Your Actions' };
+      default: return { text: current.name, phase: '' };
+    }
+  },
+
+  _getPhaseSteps(battle) {
+    const current = Combat.getCurrentTurn(battle);
+    if (!current || !current.isGearloc || battle.phase === 'enemy_turn') return '';
+    const rolled = battle.phase === 'acting' || battle.phase === 'allocating';
+    const steps = [
+      { label: 'Roll', active: battle.phase === 'rolling', completed: rolled },
+      { label: 'Act', active: rolled, completed: false },
+      { label: 'End Turn', active: false, completed: false }
+    ];
+    let html = '<div class="phase-steps">';
+    steps.forEach((step, i) => {
+      if (i > 0) html += '<span class="phase-step-divider">\u203A</span>';
+      const cls = step.completed ? 'completed' : (step.active ? 'active' : '');
+      html += `<span class="phase-step ${cls}">${step.label}</span>`;
+    });
+    html += '</div>';
+    return html;
   },
 
   _renderUnitInfo(battle, gearloc) {
     let html = '';
+    const hpPct = gearloc.hp / gearloc.maxHp;
+    const hpClass = hpPct > 0.5 ? 'hp-high' : (hpPct > 0.25 ? 'hp-medium' : 'hp-low');
 
     // Gearloc info
     html += `<div class="unit-info-panel">`;
-    html += `<div class="unit-info-header">${gearloc.name}</div>`;
-    html += `<div class="hp-bar"><div class="hp-bar-fill" style="width:${(gearloc.hp / gearloc.maxHp) * 100}%"></div></div>`;
-    html += `<div class="unit-stat-row"><span class="unit-stat-label">HP</span><span class="unit-stat-value">${gearloc.hp} / ${gearloc.maxHp}</span></div>`;
-    html += `<div class="unit-stat-row"><span class="unit-stat-label">ATK</span><span class="unit-stat-value">${gearloc.atk}</span></div>`;
-    html += `<div class="unit-stat-row"><span class="unit-stat-label">DEF</span><span class="unit-stat-value">${gearloc.def}</span></div>`;
-    html += `<div class="unit-stat-row"><span class="unit-stat-label">DEX</span><span class="unit-stat-value">${gearloc.dex}</span></div>`;
-    if (gearloc.rage > 0) html += `<div class="unit-stat-row"><span class="unit-stat-label">Rage</span><span class="unit-stat-value" style="color:var(--accent-red)">${gearloc.rage}</span></div>`;
-    if (gearloc.bombs > 0) html += `<div class="unit-stat-row"><span class="unit-stat-label">Bombs</span><span class="unit-stat-value" style="color:var(--accent-red)">${gearloc.bombs}</span></div>`;
+    html += `<div class="unit-info-header"><span class="unit-info-chip" style="background:${gearloc.chipColor}">${gearloc.name[0]}</span>${gearloc.name}</div>`;
+    html += `<div class="hp-bar"><div class="hp-bar-fill ${hpClass}" style="width:${hpPct * 100}%"></div></div>`;
+    html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:#e05050">HP</span><span class="unit-stat-value">${gearloc.hp} / ${gearloc.maxHp}</span></div>`;
+    html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:#c62828">ATK</span><span class="unit-stat-value">${gearloc.atk}${battle.rageBonus ? ' <span style="color:var(--accent-red)">+' + battle.rageBonus + '</span>' : ''}</span></div>`;
+    html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:#1976d2">DEF</span><span class="unit-stat-value">${gearloc.def}${battle.shieldWallActive ? ' <span style="color:var(--accent-blue)">+' + battle.shieldWallValue + '</span>' : ''}</span></div>`;
+    html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:#388e3c">DEX</span><span class="unit-stat-value">${gearloc.dex}</span></div>`;
+    if (gearloc.rage > 0) html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:var(--accent-red)">Rage</span><span class="unit-stat-value" style="color:var(--accent-red)">${gearloc.rage}</span></div>`;
+    if (gearloc.bombs > 0) html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:var(--accent-red)">Bombs</span><span class="unit-stat-value" style="color:var(--accent-red)">${gearloc.bombs}</span></div>`;
     if (gearloc.statusEffects.length > 0) {
       html += `<div class="status-effects">`;
       for (const e of gearloc.statusEffects) {
@@ -390,11 +423,6 @@ const UI = {
     }
     html += `</div>`;
 
-    // Shield wall
-    if (battle.shieldWallActive) {
-      html += `<div class="unit-stat-row"><span class="unit-stat-label">Shield Wall</span><span class="unit-stat-value" style="color:var(--accent-blue)">${battle.shieldWallValue}</span></div>`;
-    }
-
     // Selected baddie info
     if (Renderer.selectedCell) {
       const { row, col } = Renderer.selectedCell;
@@ -402,12 +430,14 @@ const UI = {
       const tyrant = battle.tyrantUnit && battle.tyrantUnit.row === row && battle.tyrantUnit.col === col ? battle.tyrantUnit : null;
       const unit = baddie || tyrant;
       if (unit) {
+        const uHpPct = unit.hp / unit.maxHp;
+        const uHpClass = uHpPct > 0.5 ? 'hp-high' : (uHpPct > 0.25 ? 'hp-medium' : 'hp-low');
         html += `<div class="unit-info-panel">`;
-        html += `<div class="unit-info-header" style="color:var(--accent-red)">${unit.name}${unit.isTyrant ? ' (Tyrant)' : ''}</div>`;
-        html += `<div class="hp-bar"><div class="hp-bar-fill" style="width:${(unit.hp / unit.maxHp) * 100}%"></div></div>`;
-        html += `<div class="unit-stat-row"><span class="unit-stat-label">HP</span><span class="unit-stat-value">${unit.hp} / ${unit.maxHp}</span></div>`;
-        html += `<div class="unit-stat-row"><span class="unit-stat-label">ATK</span><span class="unit-stat-value">${unit.atk}</span></div>`;
-        html += `<div class="unit-stat-row"><span class="unit-stat-label">DEF</span><span class="unit-stat-value">${unit.def}</span></div>`;
+        html += `<div class="unit-info-header" style="color:var(--accent-red)"><span class="unit-info-chip" style="background:${unit.color || unit.chipColor}">${unit.name[0]}</span>${unit.name}${unit.isTyrant ? ' (Tyrant)' : ''}</div>`;
+        html += `<div class="hp-bar"><div class="hp-bar-fill ${uHpClass}" style="width:${uHpPct * 100}%"></div></div>`;
+        html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:#e05050">HP</span><span class="unit-stat-value">${unit.hp} / ${unit.maxHp}</span></div>`;
+        html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:#c62828">ATK</span><span class="unit-stat-value">${unit.atk}</span></div>`;
+        html += `<div class="unit-stat-row"><span class="unit-stat-label" style="color:#1976d2">DEF</span><span class="unit-stat-value">${unit.def}</span></div>`;
         html += `<div class="unit-stat-row"><span class="unit-stat-label">Type</span><span class="unit-stat-value">${unit.type}</span></div>`;
         if (unit.statusEffects && unit.statusEffects.length > 0) {
           html += `<div class="status-effects">`;
@@ -424,13 +454,20 @@ const UI = {
   },
 
   _renderInitiative(battle) {
-    let html = `<div class="initiative-list"><div class="initiative-title">Initiative</div>`;
+    let html = `<div class="initiative-list"><div class="initiative-title">Turn Order</div>`;
     battle.initiative.forEach((unit, i) => {
       const isActive = i === battle.currentTurnIndex;
-      html += `<div class="init-entry ${isActive ? 'active-turn' : ''}">
+      // Check if unit is dead
+      let isDead = false;
+      if (!unit.isGearloc) {
+        const found = Combat.findUnit(battle, unit.id);
+        if (found && found.hp <= 0) isDead = true;
+      }
+      const cls = isDead ? 'dead-unit' : (isActive ? 'active-turn' : '');
+      html += `<div class="init-entry ${cls}">
         <div class="init-chip" style="background:${unit.color}">${unit.name[0]}</div>
         <span class="init-name">${unit.name}</span>
-        <span class="init-hp">${unit.init}</span>
+        <span class="init-hp">${isDead ? '\u2620' : unit.init}</span>
       </div>`;
     });
     html += `</div>`;
@@ -439,9 +476,12 @@ const UI = {
 
   _renderCombatLog(battle) {
     let html = `<div class="combat-log"><div class="combat-log-title">Combat Log</div>`;
-    const logs = battle.combatLog.slice(-15);
+    const logs = battle.combatLog.slice(-20);
     for (const entry of logs) {
-      const cls = entry.msg.includes('damage') ? 'damage' : (entry.msg.includes('heal') ? 'heal' : 'info');
+      let cls = 'info';
+      if (entry.msg.includes('damage') || entry.msg.includes('attacks')) cls = 'damage';
+      else if (entry.msg.includes('heal') || entry.msg.includes('regenerate')) cls = 'heal';
+      else if (entry.msg.startsWith('---')) cls = 'round';
       html += `<div class="log-entry ${cls}">${entry.msg}</div>`;
     }
     html += `</div>`;
@@ -454,8 +494,9 @@ const UI = {
     let html = '';
 
     if (isGearlocTurn && battle.phase === 'rolling') {
-      html += `<div class="action-section"><div class="action-section-label">Actions</div>
-        <button class="btn btn-primary btn-small" id="btn-roll-dice">Roll Dice</button>
+      html += `<div class="action-section" style="flex:1;text-align:center">
+        <div class="action-section-label">Step 1: Roll Dice</div>
+        <button class="btn btn-primary" id="btn-roll-dice" style="margin-top:4px">Roll Dice</button>
       </div>`;
     }
 
@@ -463,21 +504,26 @@ const UI = {
       // Dice results
       const results = battle.diceResults;
       if (results) {
-        html += `<div class="action-section"><div class="action-section-label">Attack</div><div class="dice-pool">`;
+        // Calculate totals for display
+        const atkTotal = Dice.sumAttack(results.attack || [], (battle.rageBonus || 0) + Gearloc.getPassiveBonus(gearloc, 'atk') + (gearloc.tempBonuses.atkBonus || 0));
+        const defTotal = Dice.sumDefense(results.defense || []);
+        const dexTotal = Dice.sumDex(results.dexterity || []);
+
+        html += `<div class="action-section"><div class="action-section-label" style="color:#e53935">Attack: ${atkTotal}</div><div class="dice-pool">`;
         for (const d of (results.attack || [])) {
-          html += `<div class="die ${Dice.getDieClass(d, 'attack')}" title="ATK: ${d.type === 'bones' ? 'Bone' : d.value}"><span class="die-value">${Dice.getDieSymbol(d)}</span></div>`;
+          html += `<div class="die ${Dice.getDieClass(d, 'attack')}" title="ATK: ${d.type === 'bones' ? 'Bone' : d.value}"><span class="die-value">${Dice.getDieSymbol(d)}</span><span class="die-type-icon">${Dice.getDieTypeLabel(d)}</span></div>`;
         }
         html += `</div></div>`;
 
-        html += `<div class="action-section"><div class="action-section-label">Defense</div><div class="dice-pool">`;
+        html += `<div class="action-section"><div class="action-section-label" style="color:#2196f3">Defense: ${defTotal}</div><div class="dice-pool">`;
         for (const d of (results.defense || [])) {
-          html += `<div class="die ${Dice.getDieClass(d, 'defense')}" title="DEF: ${d.type === 'bones' ? 'Bone' : d.value}"><span class="die-value">${Dice.getDieSymbol(d)}</span></div>`;
+          html += `<div class="die ${Dice.getDieClass(d, 'defense')}" title="DEF: ${d.type === 'bones' ? 'Bone' : d.value}"><span class="die-value">${Dice.getDieSymbol(d)}</span><span class="die-type-icon">${Dice.getDieTypeLabel(d)}</span></div>`;
         }
         html += `</div></div>`;
 
-        html += `<div class="action-section"><div class="action-section-label">Dexterity</div><div class="dice-pool">`;
+        html += `<div class="action-section"><div class="action-section-label" style="color:#4caf50">Dexterity: ${dexTotal}</div><div class="dice-pool">`;
         for (const d of (results.dexterity || [])) {
-          html += `<div class="die ${Dice.getDieClass(d, 'dexterity')}" title="DEX: ${d.type === 'bones' ? 'Bone' : d.value}"><span class="die-value">${Dice.getDieSymbol(d)}</span></div>`;
+          html += `<div class="die ${Dice.getDieClass(d, 'dexterity')}" title="DEX: ${d.type === 'bones' ? 'Bone' : d.value}"><span class="die-value">${Dice.getDieSymbol(d)}</span><span class="die-type-icon">${Dice.getDieTypeLabel(d)}</span></div>`;
         }
         html += `</div></div>`;
       }
@@ -485,19 +531,19 @@ const UI = {
       // Backup plan
       html += `<div class="action-section"><div class="action-section-label">Backup Plan</div><div class="backup-plan ${gearloc.backupPlan.length >= Config.MAX_BACKUP_PLAN ? 'backup-plan-ready' : ''}">`;
       for (let i = 0; i < Config.MAX_BACKUP_PLAN; i++) {
-        html += `<div class="backup-slot ${i < gearloc.backupPlan.length ? 'filled' : ''}">${i < gearloc.backupPlan.length ? '&#9760;' : ''}</div>`;
+        html += `<div class="backup-slot ${i < gearloc.backupPlan.length ? 'filled' : ''}">${i < gearloc.backupPlan.length ? '\u2620' : ''}</div>`;
       }
       html += `</div>`;
       if (gearloc.backupPlan.length >= Config.MAX_BACKUP_PLAN) {
-        html += `<button class="btn btn-small" id="btn-backup-plan" style="margin-top:4px">Use BP</button>`;
+        html += `<button class="btn btn-small" id="btn-backup-plan" style="margin-top:4px">Activate!</button>`;
       }
       html += `</div>`;
 
       // Skills
-      if (gearloc.unlockedSkills.length > 0) {
+      const activeSkills = gearloc.unlockedSkills.filter(s => s.type !== 'passive');
+      if (activeSkills.length > 0) {
         html += `<div class="action-section"><div class="action-section-label">Skills</div><div class="skill-buttons">`;
-        for (const skill of gearloc.unlockedSkills) {
-          if (skill.type === 'passive') continue;
+        for (const skill of activeSkills) {
           html += `<button class="skill-btn" data-skill="${skill.id}" title="${skill.desc}">${skill.name}</button>`;
         }
         html += `</div></div>`;
@@ -505,7 +551,7 @@ const UI = {
 
       // Bombs (Boomer)
       if (gearloc.bombs > 0) {
-        html += `<div class="action-section"><div class="action-section-label">Bombs (${gearloc.bombs})</div>
+        html += `<div class="action-section"><div class="action-section-label">Bombs: ${gearloc.bombs}</div>
           <button class="btn btn-small btn-danger" id="btn-use-bomb">Throw Bomb</button>
         </div>`;
       }
@@ -519,18 +565,18 @@ const UI = {
         html += `</div></div>`;
       }
 
-      // Action buttons
+      // Action buttons with move/attack state
+      const hasTargets = Combat.getValidTargets(battle, gearloc).length > 0;
+      const hasMoves = battle.diceResults && Dice.sumDex(battle.diceResults.dexterity || []) > 0;
       html += `<div class="action-buttons">
-        <button class="btn btn-small" id="btn-move">Move</button>
-        <button class="btn btn-small btn-danger" id="btn-attack">Attack</button>
+        <button class="btn btn-small" id="btn-move" ${!hasMoves ? 'disabled title="No DEX points"' : ''}>Move</button>
+        <button class="btn btn-small btn-danger" id="btn-attack" ${!hasTargets ? 'disabled title="No adjacent enemies"' : ''}>Attack</button>
         <button class="btn btn-primary btn-small" id="btn-end-turn">End Turn</button>
       </div>`;
     }
 
     if (!isGearlocTurn || battle.phase === 'enemy_turn') {
-      html += `<div class="action-section"><div class="action-section-label">Enemy Turn</div>
-        <p style="color:var(--text-dim);font-size:0.8rem">Waiting for enemies...</p>
-      </div>`;
+      html += `<div class="enemy-turn-waiting">Enemy Turn \u2014 Waiting for enemies...</div>`;
     }
 
     return html;

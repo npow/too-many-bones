@@ -144,10 +144,10 @@ const Dice = {
 
   getDieSymbol(result) {
     switch (result.type) {
-      case 'sword': return `${result.value}`;
-      case 'shield': return `${result.value}`;
-      case 'dex': return `${result.value}`;
-      case 'bones': return '';
+      case 'sword': return result.value;
+      case 'shield': return result.value;
+      case 'dex': return result.value;
+      case 'bones': return '\u2620';  // ☠ skull
       default: return result.value;
     }
   },
@@ -157,7 +157,7 @@ const Dice = {
       case 'sword': return 'ATK';
       case 'shield': return 'DEF';
       case 'dex': return 'DEX';
-      case 'bones': return 'BONE';
+      case 'bones': return '';
       default: return '';
     }
   },
