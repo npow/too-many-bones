@@ -1,4 +1,7 @@
 # Too Many Bones
+
+[![Docs](https://img.shields.io/badge/docs-mintlify-18a34a?style=flat-square)](https://mintlify.com/npow/too-many-bones)
+
 > A digital dice-builder RPG inspired by the Chip Theory Games tabletop classic
 
 ![Title Screen](screenshots/title.png)
